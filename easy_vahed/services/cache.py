@@ -3,10 +3,11 @@ from redis import Redis
 
 
 class CacheService:
-    PREFIX = 'R'
+    PREFIX = 'E'
     KEYS = {
         'university': f'{PREFIX}:''{user_id}_UNIVERSITY',
         'major': f'{PREFIX}:''{user_id}_MAJOR',
+        'course': f'{PREFIX}:''{user_id}_COURSES',
     }
     EX = 60 * 30
 
@@ -37,3 +38,14 @@ class CacheService:
         client = self._get_redis_client()
 
         return int(client.get(name=self.KEYS['major'].format(user_id=user_id)) or b'-1')
+
+    def cache_course(self, user_id, course):
+        client = self._get_redis_client()
+
+        client.rpush(self.KEYS['course'].format(user_id=user_id), course)
+
+    def get_courses(self, user_id):
+        client = self._get_redis_client()
+
+        return [c.decode() for c in client.lrange(name=self.KEYS['course'].format(user_id=user_id),
+                                                  start=0, end=16)]

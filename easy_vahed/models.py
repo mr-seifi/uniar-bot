@@ -32,6 +32,12 @@ class Major(models.Model):
         return self.name
 
 
+class Chart(models.Model):
+    major = models.ForeignKey(to='Major', on_delete=models.CASCADE)
+    university = models.ForeignKey(to='University', on_delete=models.CASCADE)
+    file = models.FileField(upload_to='charts')
+    
+
 class Professor(models.Model):
     name = models.CharField(max_length=128)
 
@@ -40,9 +46,9 @@ class Professor(models.Model):
 
 
 class Student(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, null=True)
     user_id = models.CharField(max_length=32, db_index=True)
-    user_name = models.CharField(max_length=128)
+    user_name = models.CharField(max_length=128, null=True)
     university = models.ForeignKey(to='University', on_delete=models.CASCADE)
     major = models.ForeignKey(to='Major', on_delete=models.CASCADE)
     year = models.CharField(max_length=8, choices=YearChoices.choices)

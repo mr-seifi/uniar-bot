@@ -128,7 +128,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
+STATIC_ROOT = 'static/'
 STATIC_URL = 'static/'
+
+MEDIA_ROOT = ''
+MEDIA_URL = ''
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
@@ -142,8 +146,11 @@ TELEGRAM_MESSAGES = {
 
     'register_university': 'رشتتو بهم بگو بلا :))',
     'register_major': 'ورودی چه *سالی* هستی عنن:؟',
-    'register_done': 'تامام شد تبریک میگم بهت :)',
-    'expired': 'خیلی کندی :/'
+    'register_done': 'تامام شد تبریک میگم بهت :) /start',
+    'expired': 'خیلی کندی :/',
+    'menu': 'شل کن بدو :)',
+    'easy_vahed': 'انتخاب کن یالا!!',
+    'choose_courses': 'خسته شدیم :)))',
 }
 
 STATES = {
@@ -151,5 +158,8 @@ STATES = {
     'register_university': 1,
     'register_major': 2,
     'register_year': 3,
-    'register_done': 4
+    'register_done': 4,
+    'menu': 5,
+    'easy_vahed': 6,
+    'choose_courses': 7,
 }

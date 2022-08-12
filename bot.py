@@ -8,7 +8,7 @@ from django.conf import settings
 
 django.setup()
 
-from easy_vahed.models import Student, University, Major
+from easy_vahed.models import Student, University, Major, Chart, Course
 from easy_vahed.enums import UniversityChoices, MajorChoices, YearChoices
 from easy_vahed.services import CacheService
 
@@ -32,9 +32,9 @@ async def start(update: Update, context: CallbackContext):
     if not is_registered:
         return await blind_start(update, context)
 
-    return await message.reply_text(
-        'OKK!'
-    )
+    await menu(update, context)
+
+    return settings.STATES['menu']
 
 
 async def blind_start(update: Update, context: CallbackContext) -> int:
@@ -145,6 +145,113 @@ async def register_done(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+async def menu(update: Update, context: CallbackContext) -> int:
+    message = update.message
+
+    keyboard = [
+        [
+            InlineKeyboardButton('ایزی واحد', callback_data=0)
+        ]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await message.reply_text(
+        settings.TELEGRAM_MESSAGES['menu'],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=markup
+    )
+
+    return settings.STATES['menu']
+
+
+async def easy_vahed(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+
+    await query.answer()
+    keyboard = [
+        [
+            InlineKeyboardButton('انتخاب واحد', callback_data=0)
+        ],
+        [
+            InlineKeyboardButton('دانلود چارت', callback_data=1)
+        ]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_vahed'],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=markup
+    )
+
+    return settings.STATES['easy_vahed']
+
+
+async def choose_courses(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    user_id = query.from_user.id
+    selected_course = query.data
+
+    await query.answer()
+
+    service = CacheService()
+    if selected_course[0] == 'C':
+        service.cache_course(user_id=user_id, course=selected_course[1:])
+
+    if selected_course == '-1':
+        ...
+
+    selected_courses = service.get_courses(user_id=user_id)
+
+    emoji = '\U0001F351'
+    keyboard = [
+        [
+            InlineKeyboardButton(f'{str(course)}{("", f" {emoji}")[course.id in selected_courses]}',
+                                 callback_data=fr'C{course.id}')
+        ] for course in Course.objects.all()
+    ]
+
+    keyboard += [
+        [
+            InlineKeyboardButton('تموم شد', callback_data='-1')
+        ]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['choose_vahed'],
+        reply_markup=markup
+    )
+
+    return settings.STATES['choose_courses']
+
+
+async def choose_courses_done(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    service = CacheService()
+    # courses = service.get_courses(user_id=user_id)
+    # for course_1 in range:
+    #     for course_2
+
+
+async def download_chart(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    await query.answer()
+
+    st = Student.objects.get(user_id=user_id)
+    chart = Chart.objects.get(university=st.university,
+                              major=st.major)
+
+    await context.bot.send_document(
+        document=chart.file.file,
+        chat_id=user_id
+    )
+
+    return settings.STATES['easy_vahed']
 
 
 def main() -> None:
@@ -164,6 +271,16 @@ def main() -> None:
             ],
             settings.STATES['register_done']: [
                 CallbackQueryHandler(register_done, pattern=r'^\d+$')
+            ],
+            settings.STATES['menu']: [
+                CallbackQueryHandler(easy_vahed, pattern=r'^\d+$')
+            ],
+            settings.STATES['easy_vahed']: [
+                CallbackQueryHandler(choose_courses, pattern=r'^0$'),
+                CallbackQueryHandler(download_chart, pattern=r'^1$'),
+            ],
+            settings.STATES['choose_courses']: [
+                CallbackQueryHandler(choose_courses, pattern='^.+$')
             ]
         },
         fallbacks=[CommandHandler('start', start)]
