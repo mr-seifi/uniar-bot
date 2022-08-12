@@ -1,5 +1,0 @@
-Django==4.1
-django-redis==5.2.0
-ipython==8.4.0
-python-telegram-bot==20.0a2
-redis==4.3.4

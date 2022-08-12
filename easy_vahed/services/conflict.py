@@ -19,9 +19,6 @@ class ConflictService:
     @classmethod
     def check_conflict(cls, course_1: Course, course_2: Course) -> bool:
 
-        if course_1.university != course_2.university:
-            return False
-
         if course_1.exam_date == course_2.exam_date:
             if cls._check_period_hours_conflict(course_1.exam_start, course_1.exam_end,
                                                 course_2.exam_start, course_2.exam_end):
