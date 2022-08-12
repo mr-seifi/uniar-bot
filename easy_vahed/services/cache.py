@@ -42,10 +42,15 @@ class CacheService:
     def cache_course(self, user_id, course):
         client = self._get_redis_client()
 
-        client.rpush(self.KEYS['course'].format(user_id=user_id), course)
+        client.hset(name=self.KEYS['course'].format(user_id=user_id), key=course, value=1)
 
     def get_courses(self, user_id):
         client = self._get_redis_client()
 
-        return [c.decode() for c in client.lrange(name=self.KEYS['course'].format(user_id=user_id),
-                                                  start=0, end=16)]
+        return [c.decode() for c in client.hgetall(name=self.KEYS['course'].format(user_id=user_id))]
+
+    def delete_course(self, user_id, course):
+        client = self._get_redis_client()
+
+        client.hdel(self.KEYS['course'].format(user_id=user_id),
+                    course)

@@ -192,21 +192,28 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     user_id = query.from_user.id
     selected_course = query.data
 
+    print(selected_course)
     await query.answer()
 
     service = CacheService()
+    selected_courses = service.get_courses(user_id=user_id)
+
     if selected_course[0] == 'C':
-        service.cache_course(user_id=user_id, course=selected_course[1:])
+        if str(selected_course[1:]) in selected_courses:
+            service.delete_course(user_id=user_id, course=str(selected_course[1:]))
+        else:
+            service.cache_course(user_id=user_id, course=selected_course[1:])
 
     if selected_course == '-1':
         ...
 
     selected_courses = service.get_courses(user_id=user_id)
 
+    print(f'sc: {selected_courses}')
     emoji = '\U0001F351'
     keyboard = [
         [
-            InlineKeyboardButton(f'{str(course)}{("", f" {emoji}")[course.id in selected_courses]}',
+            InlineKeyboardButton(f'{str(course)}{("", f" {emoji}")[str(course.id) in selected_courses]}',
                                  callback_data=fr'C{course.id}')
         ] for course in Course.objects.all()
     ]
@@ -218,10 +225,15 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     ]
     markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        settings.TELEGRAM_MESSAGES['choose_vahed'],
-        reply_markup=markup
-    )
+    if selected_course[0] == 'C':
+        print('x')
+        await query.edit_message_reply_markup(
+            reply_markup=markup
+        )
+    else:
+        await query.edit_message_text(
+            settings.TELEGRAM_MESSAGES['choose_courses'],
+            reply_markup=markup)
 
     return settings.STATES['choose_courses']
 
