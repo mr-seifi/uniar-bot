@@ -10,7 +10,7 @@ django.setup()
 
 from easy_vahed.models import Student, University, Major, Chart, Course
 from easy_vahed.enums import UniversityChoices, MajorChoices, YearChoices
-from easy_vahed.services import CacheService
+from easy_vahed.services import CacheService, ConflictService
 
 # Enable logging
 
@@ -205,7 +205,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
             service.cache_course(user_id=user_id, course=selected_course[1:])
 
     if selected_course == '-1':
-        ...
+        return await choose_courses_done(update, context)
 
     selected_courses = service.get_courses(user_id=user_id)
 
@@ -226,10 +226,10 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     markup = InlineKeyboardMarkup(keyboard)
 
     if selected_course[0] == 'C':
-        print('x')
         await query.edit_message_reply_markup(
             reply_markup=markup
         )
+
     else:
         await query.edit_message_text(
             settings.TELEGRAM_MESSAGES['choose_courses'],
@@ -242,10 +242,29 @@ async def choose_courses_done(update: Update, context: CallbackContext):
     query = update.callback_query
     user_id = query.from_user.id
 
-    service = CacheService()
-    # courses = service.get_courses(user_id=user_id)
-    # for course_1 in range:
-    #     for course_2
+    cache_service = CacheService()
+    service = ConflictService()
+
+    course_ids = cache_service.get_courses(user_id=user_id)
+    courses = Course.objects.filter(id__in=course_ids)
+
+    for it_1, course_1 in enumerate(courses):
+        for it_2, course_2 in enumerate(courses):
+            if it_2 >= it_1:
+                break
+
+            if service.check_conflict(course_1, course_2):
+                await query.edit_message_text(
+                    settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name, c2=course_2.name)
+                )
+
+                return ConversationHandler.END
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['has_not_conflict']
+    )
+
+    return ConversationHandler.END
 
 
 async def download_chart(update: Update, context: CallbackContext):
