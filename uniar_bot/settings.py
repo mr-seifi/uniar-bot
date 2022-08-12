@@ -82,6 +82,17 @@ DATABASES = {
     }
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient"
+        },
+        "KEY_PREFIX": "example"
+    }
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -107,7 +118,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Tehran'
 
 USE_I18N = True
 
@@ -123,3 +134,22 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Telegram Messages
+TELEGRAM_MESSAGES = {
+    'blind_start': 'سلام چطوری؟\n'
+                   'برای اینکه از من سواستفاده کنی باید *دانشگاهتو* بهم بگی :)))',
+
+    'register_university': 'رشتتو بهم بگو بلا :))',
+    'register_major': 'ورودی چه *سالی* هستی عنن:؟',
+    'register_done': 'تامام شد تبریک میگم بهت :)',
+    'expired': 'خیلی کندی :/'
+}
+
+STATES = {
+    'blind_start': 0,
+    'register_university': 1,
+    'register_major': 2,
+    'register_year': 3,
+    'register_done': 4
+}
