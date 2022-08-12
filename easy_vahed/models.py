@@ -59,7 +59,9 @@ class Course(models.Model):
     days = models.ManyToManyField(to=WeekDay)
     start_hour = models.TimeField()
     end_hour = models.TimeField()
-    exam_date = models.DateTimeField()
+    exam_date = models.DateField()
+    exam_start = models.TimeField()
+    exam_end = models.TimeField()
 
     def __str__(self):
         return f'{self.code}: {self.name} - {self.professor}'
