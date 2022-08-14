@@ -253,9 +253,10 @@ async def choose_courses_done(update: Update, context: CallbackContext):
             if it_2 >= it_1:
                 break
 
-            if service.check_conflict(course_1, course_2):
+            has_conflict, reason = service.check_conflict(course_1, course_2)
+            if has_conflict:
                 await query.edit_message_text(
-                    settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name, c2=course_2.name)
+                    settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name, c2=course_2.name, reason=reason)
                 )
 
                 return ConversationHandler.END

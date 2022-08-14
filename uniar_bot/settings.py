@@ -151,7 +151,7 @@ TELEGRAM_MESSAGES = {
     'menu': 'شل کن بدو :)',
     'easy_vahed': 'انتخاب کن یالا!!',
     'choose_courses': 'خسته شدیم :)))',
-    'has_conflict': 'درس {c1} با درس {c2} تداخل دارد!',
+    'has_conflict': 'درس {c1} با درس {c2} به دلیل {reason} تداخل دارد!',
     'has_not_conflict': 'همه‌چی اوکیه! بردار عشق کن ;)',
 }
 
