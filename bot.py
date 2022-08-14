@@ -125,15 +125,12 @@ async def register_done(update: Update, context: CallbackContext) -> int:
         )
         return ConversationHandler.END
 
-    university = University.objects.get(id=university_id)
-    major = Major.objects.get(id=major_id)
-
     Student.objects.create(
         name=query.from_user.full_name,
         user_id=user_id,
         user_name=query.from_user.username,
-        university=university,
-        major=major,
+        university_id=university_id,
+        major_id=major_id,
         year=year,
     )
 
@@ -192,7 +189,6 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     user_id = query.from_user.id
     selected_course = query.data
 
-    print(selected_course)
     await query.answer()
 
     service = CacheService()
@@ -209,7 +205,6 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
 
     selected_courses = service.get_courses(user_id=user_id)
 
-    print(f'sc: {selected_courses}')
     emoji = '\U0001F351'
     keyboard = [
         [
@@ -305,7 +300,7 @@ def main() -> None:
                 CallbackQueryHandler(register_done, pattern=r'^\d+$')
             ],
             settings.STATES['menu']: [
-                CallbackQueryHandler(easy_vahed, pattern=r'^\d+$')
+                CallbackQueryHandler(easy_vahed, pattern=r'^0$')
             ],
             settings.STATES['easy_vahed']: [
                 CallbackQueryHandler(choose_courses, pattern=r'^0$'),
