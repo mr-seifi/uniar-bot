@@ -1,6 +1,6 @@
 from celery import shared_task
 from easy_vahed.services import CacheService
-from easy_vahed.models import Student
+from prof.models import Student
 
 
 @shared_task(ignore_result=True)

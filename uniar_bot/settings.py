@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'prof.apps.ProfConfig',
     'easy_vahed.apps.EasyVahedConfig',
 ]
 
@@ -159,6 +160,9 @@ TELEGRAM_MESSAGES = {
                       'تعداد *واحد* انتخاب شده: *{weight}*',
     'has_conflict': 'درس {c1} با درس {c2} به دلیل {reason} تداخل دارد!',
     'has_not_conflict': 'همه‌چی اوکیه! بردار عشق کن ;)',
+    'wanna_add_to_profile': 'می‌خوای اینا به پروفایلت اضافه بشه؟',
+    'added_to_profile': 'اضافه شد!',
+    'cancel_adding_to_profile': 'حله :)',
 }
 
 STATES = {
@@ -170,4 +174,5 @@ STATES = {
     'menu': 5,
     'easy_vahed': 6,
     'choose_courses': 7,
+    'add_course_to_profile': 8
 }

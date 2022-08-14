@@ -5,8 +5,9 @@ from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackContext, ConversationHandler, CallbackQueryHandler
 from secret import BOT_TOKEN
 from django.conf import settings
-from easy_vahed.models import Student, University, Major, Chart, Course
-from easy_vahed.enums import UniversityChoices, MajorChoices, YearChoices
+from prof.models import Student, University, Major
+from prof.enums import UniversityChoices, MajorChoices, YearChoices
+from easy_vahed.models import Chart, Course
 from easy_vahed.services import CacheService, ConflictService
 
 # Enable logging
@@ -250,8 +251,56 @@ async def choose_courses_done(update: Update, _: CallbackContext):
 
                 return ConversationHandler.END
 
+    keyboard = [
+        [
+            InlineKeyboardButton('نه', callback_data=0),
+            InlineKeyboardButton('آره', callback_data=1)
+        ]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    if not course_ids:
+        await query.edit_message_text(
+            settings.TELEGRAM_MESSAGES['has_not_conflict'],
+        )
+
+        return ConversationHandler.END
+
     await query.edit_message_text(
-        settings.TELEGRAM_MESSAGES['has_not_conflict']
+        f'{settings.TELEGRAM_MESSAGES["has_not_conflict"]}\n'
+        f'{settings.TELEGRAM_MESSAGES["wanna_add_to_profile"]}',
+        reply_markup=markup
+    )
+
+    return settings.STATES['add_course_to_profile']
+
+
+async def add_course_to_profile(update: Update, _: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    service = CacheService()
+    selected_courses = Course.objects.filter(id__in=service.get_courses(user_id=user_id))
+    student = Student.objects.get(user_id=user_id)
+
+    student.courses.clear()
+    list(map(student.courses.add, selected_courses))
+
+    await query.answer()
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['added_to_profile']
+    )
+
+    return ConversationHandler.END
+
+
+async def cancel_adding_courses_to_profile(update: Update, _: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['cancel_adding_to_profile']
     )
 
     return ConversationHandler.END
@@ -301,6 +350,10 @@ def main() -> None:
             ],
             settings.STATES['choose_courses']: [
                 CallbackQueryHandler(choose_courses, pattern='^.+$')
+            ],
+            settings.STATES['add_course_to_profile']: [
+                CallbackQueryHandler(cancel_adding_courses_to_profile, pattern='^0$'),
+                CallbackQueryHandler(add_course_to_profile, pattern='^1$'),
             ]
         },
         fallbacks=[CommandHandler('start', start)]
