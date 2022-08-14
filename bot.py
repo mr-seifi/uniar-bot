@@ -1,4 +1,6 @@
 import logging
+
+from django.db.models import Sum
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackContext, ConversationHandler, CallbackQueryHandler
@@ -204,6 +206,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
         return await choose_courses_done(update, context)
 
     selected_courses = service.get_courses(user_id=user_id)
+    selected_courses_weight_sum = Course.objects.filter(id__in=selected_courses).aggregate(Sum('weight'))['weight__sum']
 
     emoji = '\U0001F351'
     keyboard = [
@@ -220,15 +223,10 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     ]
     markup = InlineKeyboardMarkup(keyboard)
 
-    if selected_course[0] == 'C':
-        await query.edit_message_reply_markup(
-            reply_markup=markup
-        )
-
-    else:
-        await query.edit_message_text(
-            settings.TELEGRAM_MESSAGES['choose_courses'],
-            reply_markup=markup)
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['choose_courses'].format(weight=selected_courses_weight_sum),
+        reply_markup=markup
+    )
 
     return settings.STATES['choose_courses']
 

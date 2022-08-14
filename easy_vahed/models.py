@@ -52,6 +52,7 @@ class Student(models.Model):
     university = models.ForeignKey(to='University', on_delete=models.CASCADE)
     major = models.ForeignKey(to='Major', on_delete=models.CASCADE)
     year = models.CharField(max_length=8, choices=YearChoices.choices)
+    courses = models.ManyToManyField(to='Course')
 
     def __str__(self):
         return self.name
@@ -62,6 +63,7 @@ class Course(models.Model):
     code = models.CharField(max_length=64, db_index=True)
     professor = models.ForeignKey(to='Professor', on_delete=models.CASCADE)
     university = models.ForeignKey(to='University', on_delete=models.CASCADE)
+    weight = models.IntegerField()
     days = models.ManyToManyField(to=WeekDay)
     start_hour = models.TimeField()
     end_hour = models.TimeField()

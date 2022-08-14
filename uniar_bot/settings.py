@@ -150,7 +150,8 @@ TELEGRAM_MESSAGES = {
     'expired': 'خیلی کندی :/',
     'menu': 'شل کن بدو :)',
     'easy_vahed': 'انتخاب کن یالا!!',
-    'choose_courses': 'خسته شدیم :)))',
+    'choose_courses': 'لطفا درساتو انتخاب کن.\n'
+                      'تعداد *واحد* انتخاب شده: *{weight}*',
     'has_conflict': 'درس {c1} با درس {c2} به دلیل {reason} تداخل دارد!',
     'has_not_conflict': 'همه‌چی اوکیه! بردار عشق کن ;)',
 }
