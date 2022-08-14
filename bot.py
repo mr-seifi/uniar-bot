@@ -225,6 +225,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
 
     await query.edit_message_text(
         settings.TELEGRAM_MESSAGES['choose_courses'].format(weight=selected_courses_weight_sum),
+        parse_mode=ParseMode.MARKDOWN,
         reply_markup=markup
     )
 
