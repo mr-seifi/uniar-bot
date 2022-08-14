@@ -1,15 +1,10 @@
 import logging
-
 from django.db.models import Sum
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackContext, ConversationHandler, CallbackQueryHandler
 from secret import BOT_TOKEN
-import django
 from django.conf import settings
-
-django.setup()
-
 from easy_vahed.models import Student, University, Major, Chart, Course
 from easy_vahed.enums import UniversityChoices, MajorChoices, YearChoices
 from easy_vahed.services import CacheService, ConflictService
@@ -39,7 +34,7 @@ async def start(update: Update, context: CallbackContext):
     return settings.STATES['menu']
 
 
-async def blind_start(update: Update, context: CallbackContext) -> int:
+async def blind_start(update: Update, _: CallbackContext) -> int:
     message = update.message
 
     keyboard = [
@@ -58,7 +53,7 @@ async def blind_start(update: Update, context: CallbackContext) -> int:
     return settings.STATES['register_university']
 
 
-async def register_university(update: Update, context: CallbackContext) -> int:
+async def register_university(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -84,7 +79,7 @@ async def register_university(update: Update, context: CallbackContext) -> int:
     return settings.STATES['register_major']
 
 
-async def register_major(update: Update, context: CallbackContext) -> int:
+async def register_major(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -110,7 +105,7 @@ async def register_major(update: Update, context: CallbackContext) -> int:
     return settings.STATES['register_done']
 
 
-async def register_done(update: Update, context: CallbackContext) -> int:
+async def register_done(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -144,7 +139,7 @@ async def register_done(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-async def menu(update: Update, context: CallbackContext) -> int:
+async def menu(update: Update, _: CallbackContext) -> int:
     message = update.message
 
     keyboard = [
@@ -163,7 +158,7 @@ async def menu(update: Update, context: CallbackContext) -> int:
     return settings.STATES['menu']
 
 
-async def easy_vahed(update: Update, context: CallbackContext) -> int:
+async def easy_vahed(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
 
     await query.answer()
@@ -232,7 +227,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     return settings.STATES['choose_courses']
 
 
-async def choose_courses_done(update: Update, context: CallbackContext):
+async def choose_courses_done(update: Update, _: CallbackContext):
     query = update.callback_query
     user_id = query.from_user.id
 
