@@ -283,7 +283,6 @@ async def download_chart(update: Update, context: CallbackContext):
 
 def main() -> None:
     """Start the bot."""
-    # Create the Application and pass it your bot's token.
 
     application = Application.builder().token(BOT_TOKEN).build()
 
