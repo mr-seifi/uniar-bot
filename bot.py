@@ -198,7 +198,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
 
     if selected_course[0] == 'C':
         if str(selected_course[1:]) in selected_courses:
-            service.delete_course(user_id=user_id, course=str(selected_course[1:]))
+            service.delete_courses(user_id, str(selected_course[1:]))
         else:
             service.cache_course(user_id=user_id, course=selected_course[1:])
 

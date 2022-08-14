@@ -1,5 +1,6 @@
 from django.core.cache import caches
 from redis import Redis
+from django.utils import timezone
 
 
 class CacheService:
@@ -42,15 +43,31 @@ class CacheService:
     def cache_course(self, user_id, course):
         client = self._get_redis_client()
 
-        client.hset(name=self.KEYS['course'].format(user_id=user_id), key=course, value=1)
+        client.hset(name=self.KEYS['course'].format(user_id=user_id),
+                    key=course,
+                    value=timezone.now().timestamp())
 
     def get_courses(self, user_id):
         client = self._get_redis_client()
 
         return [c.decode() for c in client.hgetall(name=self.KEYS['course'].format(user_id=user_id))]
 
-    def delete_course(self, user_id, course):
+    def get_course_created(self, user_id, course):
         client = self._get_redis_client()
 
+        return float(client.hget(name=self.KEYS['course'].format(user_id=user_id), key=course).decode())
+
+    def delete_courses(self, user_id, *courses):
+        if not courses:
+            return
+
+        client = self._get_redis_client()
         client.hdel(self.KEYS['course'].format(user_id=user_id),
-                    course)
+                    *courses)
+
+    def delete_non_used_courses(self, user_id):
+        now = timezone.now().timestamp()
+        courses = [course for course in self.get_courses(user_id=user_id)
+                   if now - self.get_course_created(user_id=user_id, course=course) >= self.EX]
+
+        self.delete_courses(user_id, *courses)
