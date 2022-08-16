@@ -6,7 +6,8 @@ from telegram.ext import Application, CommandHandler, CallbackContext, Conversat
 from secret import BOT_TOKEN
 from django.conf import settings
 from prof.models import Student, University, Major
-from prof.enums import UniversityChoices, MajorChoices, YearChoices
+from prof.enums import YearChoices
+from prof.services import NameMappingService
 from easy_vahed.models import Chart, Course
 from easy_vahed.services import CacheService, ConflictService
 
@@ -38,9 +39,10 @@ async def start(update: Update, context: CallbackContext):
 async def blind_start(update: Update, _: CallbackContext) -> int:
     message = update.message
 
+    name_service: NameMappingService = NameMappingService()
     keyboard = [
         [
-            InlineKeyboardButton(getattr(UniversityChoices, university.name).label, callback_data=university.id)
+            InlineKeyboardButton(name_service.map_university(university.name), callback_data=university.id)
         ] for university in University.objects.all()
     ]
     markup = InlineKeyboardMarkup(keyboard)
@@ -63,10 +65,11 @@ async def register_university(update: Update, _: CallbackContext) -> int:
     service = CacheService()
     service.cache_university(user_id=user_id,
                              university=query.data)
+    name_service: NameMappingService = NameMappingService()
 
     keyboard = [
         [
-            InlineKeyboardButton(getattr(MajorChoices, major.name).label, callback_data=major.id)
+            InlineKeyboardButton(name_service.map_major(major.name), callback_data=major.id)
         ] for major in Major.objects.all()
     ]
     markup = InlineKeyboardMarkup(keyboard)
@@ -145,7 +148,8 @@ async def menu(update: Update, _: CallbackContext) -> int:
 
     keyboard = [
         [
-            InlineKeyboardButton('ایزی واحد', callback_data=0)
+            InlineKeyboardButton('پروفایل', callback_data=0),
+            InlineKeyboardButton('ایزی واحد', callback_data=1)
         ]
     ]
     markup = InlineKeyboardMarkup(keyboard)
@@ -235,8 +239,11 @@ async def choose_courses_done(update: Update, _: CallbackContext):
     cache_service = CacheService()
     service = ConflictService()
 
+    st = Student.objects.get(user_id=user_id)
     course_ids = cache_service.get_courses(user_id=user_id)
     courses = Course.objects.filter(id__in=course_ids)
+    all_courses = Course.objects.filter(university=st.university,
+                                        majors__in=[st.major])
 
     for it_1, course_1 in enumerate(courses):
         for it_2, course_2 in enumerate(courses):
@@ -245,8 +252,38 @@ async def choose_courses_done(update: Update, _: CallbackContext):
 
             has_conflict, reason = service.check_conflict(course_1, course_2)
             if has_conflict:
+
+                init_message = settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name,
+                                                                                 c2=course_2.name,
+                                                                                 reason=reason)
+                selected_courses_set = set(courses)
+                all_courses_set = set(all_courses)
+
+                sols_removing_course_1 = service.find_solution(selected_courses_set - set([course_1]), all_courses_set)
+                sols_removing_course_2 = service.find_solution(selected_courses_set - set([course_2]), all_courses_set)
+
+                solution_message = ''
+                if sols_removing_course_1 or sols_removing_course_2:
+                    sols_message_1 = '\n'.join([settings.TELEGRAM_MESSAGES['profile_courses'].format(name=course.name,
+                                                                                                     prof=course.professor,
+                                                                                                     weight=course.weight)
+                                                for course in
+                                                sols_removing_course_1])
+                    sols_message_2 = '\n'.join([settings.TELEGRAM_MESSAGES['profile_courses'].format(name=course.name,
+                                                                                                     prof=course.professor,
+                                                                                                     weight=course.weight)
+                                                for course in
+                                                sols_removing_course_2])
+                    solution_message = f"{settings.TELEGRAM_MESSAGES['courses_solution'].format(c=course_1.name)}\n---\n" \
+                                       f"{sols_message_1}\n\n" \
+                                       f"{settings.TELEGRAM_MESSAGES['courses_solution'].format(c=course_2.name)}\n---\n" \
+                                       f"{sols_message_2}"
+
+                    init_message += f'\n\n{solution_message}'
+
                 await query.edit_message_text(
-                    settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name, c2=course_2.name, reason=reason)
+                    init_message,
+                    parse_mode=ParseMode.MARKDOWN
                 )
 
                 return ConversationHandler.END
@@ -297,7 +334,7 @@ async def add_course_to_profile(update: Update, _: CallbackContext):
 
 async def cancel_adding_courses_to_profile(update: Update, _: CallbackContext):
     query = update.callback_query
-    user_id = query.from_user.id
+    _ = query.from_user.id
 
     await query.edit_message_text(
         settings.TELEGRAM_MESSAGES['cancel_adding_to_profile']
@@ -324,6 +361,41 @@ async def download_chart(update: Update, context: CallbackContext):
     return settings.STATES['easy_vahed']
 
 
+async def profile(update: Update, _: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    st = Student.objects.get(user_id=user_id)
+    name_service: NameMappingService = NameMappingService()
+
+    init_message = settings.TELEGRAM_MESSAGES['profile'].format(name=st.name,
+                                                                major=name_service.map_major(st.major.name),
+                                                                university=name_service.map_university(
+                                                                    st.university.name),
+                                                                year=name_service.map_year(st.year))
+    courses_message = '\n'.join([settings.TELEGRAM_MESSAGES['profile_courses'].format(
+        name=course.name,
+        prof=course.professor,
+        weight=course.weight
+    ) for course in st.courses.all()])
+
+    sum_course_weight = Course.objects.filter(
+        id__in=st.courses.all().values_list('id')
+    ).aggregate(Sum('weight'))['weight__sum'] or 0
+
+    sum_course_weight_message = settings.TELEGRAM_MESSAGES['sum_weight'].format(sum=sum_course_weight)
+
+    await query.answer()
+    await query.edit_message_text(
+        f"{init_message}\n---\n"
+        f"{courses_message}\n---\n"
+        f"{sum_course_weight_message}",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+    return
+
+
 def main() -> None:
     """Start the bot."""
 
@@ -342,7 +414,8 @@ def main() -> None:
                 CallbackQueryHandler(register_done, pattern=r'^\d+$')
             ],
             settings.STATES['menu']: [
-                CallbackQueryHandler(easy_vahed, pattern=r'^0$')
+                CallbackQueryHandler(profile, pattern=r'^0$'),
+                CallbackQueryHandler(easy_vahed, pattern=r'^1$')
             ],
             settings.STATES['easy_vahed']: [
                 CallbackQueryHandler(choose_courses, pattern=r'^0$'),

@@ -1,5 +1,5 @@
 from easy_vahed.models import Course
-from typing import Tuple
+from typing import Tuple, List, Set
 
 
 class ConflictService:
@@ -47,3 +47,22 @@ class ConflictService:
             return True, cls.CONFLICT_CODES[1]
 
         return False, cls.CONFLICT_CODES[-1]
+
+    @classmethod
+    def has_conflict_one_many(cls, selected_course: Course, courses: List[Course]) -> bool:
+        for course in courses:
+            if cls.check_conflict(selected_course, course)[0]:
+                return True
+        return False
+
+    @classmethod
+    def find_solution(cls, selected_courses: Set[Course], all_courses: Set[Course]):
+        sol = []
+
+        remained_courses = all_courses - selected_courses
+
+        for course in remained_courses:
+            if not cls.has_conflict_one_many(course, list(selected_courses)):
+                sol.append(course)
+
+        return sol

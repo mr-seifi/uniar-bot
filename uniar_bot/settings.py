@@ -159,10 +159,15 @@ TELEGRAM_MESSAGES = {
     'choose_courses': 'لطفا درساتو انتخاب کن.\n'
                       'تعداد *واحد* انتخاب شده: *{weight}*',
     'has_conflict': 'درس {c1} با درس {c2} به دلیل {reason} تداخل دارد!',
+    'courses_solution': 'اگه درس *{c}* رو حذف کنی می‌تونی این انتخاب‌هارو داشته باشی...',
     'has_not_conflict': 'همه‌چی اوکیه! بردار عشق کن ;)',
     'wanna_add_to_profile': 'می‌خوای اینا به پروفایلت اضافه بشه؟',
     'added_to_profile': 'اضافه شد!',
     'cancel_adding_to_profile': 'حله :)',
+    'profile': '{name} - {major} - {university} - {year}\n'
+               'دروس برداشته شده برای این ترم',
+    'profile_courses': '*{name}* {prof} {weight} واحد',
+    'sum_weight': 'در مجموع *{sum}* واحد برداشتی!'
 }
 
 STATES = {

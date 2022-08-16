@@ -25,9 +25,9 @@ class Chart(models.Model):
 
 class Course(models.Model):
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=64, db_index=True)
     professor = models.ForeignKey(to='prof.Professor', on_delete=models.CASCADE)
     university = models.ForeignKey(to='prof.University', on_delete=models.CASCADE)
+    majors = models.ManyToManyField(to='prof.Major')
     weight = models.IntegerField()
     days = models.ManyToManyField(to='WeekDay')
     start_hour = models.TimeField()
@@ -37,4 +37,4 @@ class Course(models.Model):
     exam_end = models.TimeField()
 
     def __str__(self):
-        return f'{self.code}: {self.name} - {self.professor}'
+        return f'{self.name} - {self.professor}'
