@@ -1,9 +1,8 @@
-from django.core.cache import caches
-from redis import Redis
+from _helpers import BaseCacheService
 from django.utils import timezone
 
 
-class CacheService:
+class CacheService(BaseCacheService):
     PREFIX = 'E'
     KEYS = {
         'university': f'{PREFIX}:''{user_id}_UNIVERSITY',
@@ -11,10 +10,6 @@ class CacheService:
         'course': f'{PREFIX}:''{user_id}_COURSES',
     }
     EX = 60 * 30
-
-    @staticmethod
-    def _get_redis_client() -> Redis:
-        return caches['default'].client.get_client()
 
     def cache_university(self, user_id, university):
         client = self._get_redis_client()

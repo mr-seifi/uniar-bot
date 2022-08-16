@@ -10,6 +10,7 @@ from prof.enums import YearChoices
 from prof.services import NameMappingService
 from easy_vahed.models import Chart, Course
 from easy_vahed.services import CacheService, ConflictService
+from easy_deadline.services import DeadlineCacheService
 
 # Enable logging
 
@@ -149,7 +150,8 @@ async def menu(update: Update, _: CallbackContext) -> int:
     keyboard = [
         [
             InlineKeyboardButton('پروفایل', callback_data=0),
-            InlineKeyboardButton('ایزی واحد', callback_data=1)
+            InlineKeyboardButton('ایزی واحد', callback_data=1),
+            InlineKeyboardButton('ایزی ددلاین', callback_data=2),
         ]
     ]
     markup = InlineKeyboardMarkup(keyboard)
@@ -259,8 +261,8 @@ async def choose_courses_done(update: Update, _: CallbackContext):
                 selected_courses_set = set(courses)
                 all_courses_set = set(all_courses)
 
-                sols_removing_course_1 = service.find_solution(selected_courses_set - set([course_1]), all_courses_set)
-                sols_removing_course_2 = service.find_solution(selected_courses_set - set([course_2]), all_courses_set)
+                sols_removing_course_1 = service.find_solution(selected_courses_set - {course_1}, all_courses_set)
+                sols_removing_course_2 = service.find_solution(selected_courses_set - {course_2}, all_courses_set)
 
                 solution_message = ''
                 if sols_removing_course_1 or sols_removing_course_2:
@@ -396,6 +398,133 @@ async def profile(update: Update, _: CallbackContext):
     return
 
 
+async def easy_deadline(update: Update, _: CallbackContext) -> int:
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    st = Student.objects.get(user_id=user_id)
+    keyboard = [
+        [
+            InlineKeyboardButton(str(course), callback_data=course.id)
+        ] for course in st.courses.all()
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await query.answer()
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_deadline_main'],
+        reply_markup=markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+    return settings.STATES['easy_deadline']
+
+
+async def deadline_course_select(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    service = DeadlineCacheService()
+    if query.id.isdigit():
+        course = Course.objects.get(id=int(query.id))
+        service.cache_course(user_id=user_id,
+                                      course_id=course.id,
+                                      course_name=course.name)
+    else:
+        if query.data == 'E0':
+            await deadline_course_name(update, context)
+        elif query.data == 'E1':
+            service.cache_deadline(user_id=user_id, deadline=query.data)
+        elif query.data == 'E2':
+            if service.get_reminder(user_id=user_id):
+                service.cache_reminder(user_id=user_id, reminder=0)
+            service.cache_reminder(user_id=user_id, reminder=1)
+        else:
+            ...
+
+    course_id, course_name = service.get_course(user_id=user_id).split(':')
+    if not course_id:
+        return
+
+    cached_name = service.get_name(user_id=user_id)
+    name = f'نام تمرین' + (f': {cached_name}', '')[not cached_name]
+    cached_deadline = service.get_deadline(user_id=user_id)
+    deadline = f'ددلاین' + (f': {cached_deadline}', '')[not cached_deadline]
+    cached_reminder = service.get_reminder(user_id=user_id)
+    if cached_reminder == 1:
+        cached_reminder = '\U0001F346'
+    reminder = f'یادآور' + (f': {cached_reminder}', '')[not cached_reminder]
+
+    await query.answer()
+    keyboard = [
+        [
+            InlineKeyboardButton(name, callback_data='E0'),
+        ],
+        [
+            InlineKeyboardButton(deadline, callback_data='E1'),
+        ],
+        [
+            InlineKeyboardButton(reminder, callback_data='E2')
+        ],
+        [
+            InlineKeyboardButton('تمام شد', callback_data='E-1')
+        ]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_deadline_course'].format(name=course_name),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=markup
+    )
+
+    return settings.STATES['easy_deadline_courses']
+
+
+async def deadline_course_name(update: Update, _: CallbackContext):
+    query = update.callback_query
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_deadline_name'],
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+    return settings.STATES['easy_deadline_name']
+
+
+async def deadline_store_course_name(update: Update, _: CallbackContext):
+    message = update.message
+    user_id = message.from_user.id
+
+    service = DeadlineCacheService()
+    service.cache_name(user_id=user_id,
+                       name=message.text)
+
+    return settings.STATES['easy_deadline_name']
+
+
+async def deadline_course_deadline(update: Update, _: CallbackContext):
+    query = update.callback_query
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_deadline_deadline'],
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+    return settings.STATES['easy_deadline_name']
+
+
+async def deadline_store_course_deadline(update: Update, _: CallbackContext):
+    message = update.message
+    user_id = message.from_user.id
+
+    service = DeadlineCacheService()
+    service.cache_name(user_id=user_id,
+                       name=message.text)
+
+    return settings.STATES['easy_deadline_name']
+
+
 def main() -> None:
     """Start the bot."""
 
@@ -415,7 +544,8 @@ def main() -> None:
             ],
             settings.STATES['menu']: [
                 CallbackQueryHandler(profile, pattern=r'^0$'),
-                CallbackQueryHandler(easy_vahed, pattern=r'^1$')
+                CallbackQueryHandler(easy_vahed, pattern=r'^1$'),
+                CallbackQueryHandler(easy_deadline, pattern=r'^2$'),
             ],
             settings.STATES['easy_vahed']: [
                 CallbackQueryHandler(choose_courses, pattern=r'^0$'),
@@ -427,6 +557,9 @@ def main() -> None:
             settings.STATES['add_course_to_profile']: [
                 CallbackQueryHandler(cancel_adding_courses_to_profile, pattern='^0$'),
                 CallbackQueryHandler(add_course_to_profile, pattern='^1$'),
+            ],
+            settings.STATES['easy_deadline']: [
+                CallbackQueryHandler()
             ]
         },
         fallbacks=[CommandHandler('start', start)]

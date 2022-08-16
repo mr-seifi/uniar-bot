@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
@@ -26,7 +25,6 @@ SECRET_KEY = 'django-insecure-$b__9-ev1*w59647ayq&a29t90r7r&1m9bb2k)(4t#30_0cg0g
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -39,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'prof.apps.ProfConfig',
     'easy_vahed.apps.EasyVahedConfig',
+    'easy_deadline.apps.EasyDeadlineConfig',
 ]
 
 MIDDLEWARE = [
@@ -72,7 +71,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'uniar_bot.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
@@ -94,7 +92,6 @@ CACHES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
@@ -113,7 +110,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -124,7 +120,6 @@ TIME_ZONE = 'Asia/Tehran'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
@@ -167,7 +162,13 @@ TELEGRAM_MESSAGES = {
     'profile': '{name} - {major} - {university} - {year}\n'
                'دروس برداشته شده برای این ترم',
     'profile_courses': '*{name}* {prof} {weight} واحد',
-    'sum_weight': 'در مجموع *{sum}* واحد برداشتی!'
+    'sum_weight': 'در مجموع *{sum}* واحد برداشتی!',
+    'easy_deadline_main': 'برای کدوم درست می‌خوای *ددلاین* ست کنی؟',
+    'easy_deadline_course': 'دیتیل مربوط به ددلاینتو وارد کن.\n'
+                            'کورس: *{name}*',
+    'easy_deadline_name': 'لطفا *نام* تمرینت رو وارد کن!',
+    'easy_deadline_deadline': 'لطفا *ددلاین* تمرینت رو وارد کن.'
+
 }
 
 STATES = {
@@ -179,5 +180,8 @@ STATES = {
     'menu': 5,
     'easy_vahed': 6,
     'choose_courses': 7,
-    'add_course_to_profile': 8
+    'add_course_to_profile': 8,
+    'easy_deadline': 9,
+    'easy_deadline_courses': 10,
+    'easy_deadline_name': 11,
 }
