@@ -197,7 +197,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     selected_courses = service.get_courses(user_id=user_id)
 
     if selected_course[0] == 'Z':
-        await query.answer(text='تداخل داره!', show_alert=True)
+        await query.answer(text='تداخل داره!')
         return settings.STATES['choose_courses']
 
     await query.answer()
@@ -281,30 +281,6 @@ async def choose_courses_done(update: Update, _: CallbackContext):
                 init_message = settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name,
                                                                                  c2=course_2.name,
                                                                                  reason=reason)
-                selected_courses_set = set(courses)
-                all_courses_set = set(all_courses)
-
-                sols_removing_course_1 = service.find_solution(selected_courses_set - {course_1}, all_courses_set)
-                sols_removing_course_2 = service.find_solution(selected_courses_set - {course_2}, all_courses_set)
-
-                solution_message = ''
-                if sols_removing_course_1 or sols_removing_course_2:
-                    sols_message_1 = '\n'.join([settings.TELEGRAM_MESSAGES['profile_courses'].format(name=course.name,
-                                                                                                     prof=course.professor,
-                                                                                                     weight=course.weight)
-                                                for course in
-                                                sols_removing_course_1])
-                    sols_message_2 = '\n'.join([settings.TELEGRAM_MESSAGES['profile_courses'].format(name=course.name,
-                                                                                                     prof=course.professor,
-                                                                                                     weight=course.weight)
-                                                for course in
-                                                sols_removing_course_2])
-                    solution_message = f"{settings.TELEGRAM_MESSAGES['courses_solution'].format(c=course_1.name)}\n---\n" \
-                                       f"{sols_message_1}\n\n" \
-                                       f"{settings.TELEGRAM_MESSAGES['courses_solution'].format(c=course_2.name)}\n---\n" \
-                                       f"{sols_message_2}"
-
-                    init_message += f'\n\n{solution_message}'
 
                 await query.edit_message_text(
                     init_message,
