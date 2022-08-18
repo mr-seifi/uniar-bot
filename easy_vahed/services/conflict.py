@@ -1,5 +1,6 @@
 from easy_vahed.models import Course
 from typing import Tuple, List, Set
+from .cache import CacheService
 
 
 class ConflictService:
@@ -56,6 +57,17 @@ class ConflictService:
         return False
 
     @classmethod
+    def get_one_to_many_conflicts(cls, selected_course: Course, courses: List[Course]) -> List[int]:
+        conflicts = []
+        for course in courses:
+            if selected_course.id == course.id:
+                conflicts.append(0)
+                continue
+            conflicts.append(res := 1 if cls.check_conflict(selected_course, course)[0] else 0)
+            print(selected_course, course, res)
+        return conflicts
+
+    @classmethod
     def find_solution(cls, selected_courses: Set[Course], all_courses: Set[Course]):
         sol = []
 
@@ -66,3 +78,13 @@ class ConflictService:
                 sol.append(course)
 
         return sol
+
+    @classmethod
+    def preprocess_conflicts(cls, courses: List[Course]):
+        cache_service = CacheService()
+
+        for course in courses:
+            conflicts = cls.get_one_to_many_conflicts(course, courses)
+            cache_service.delete_conflicts(course.id)
+            cache_service.cache_conflicts(course.id, *conflicts)
+

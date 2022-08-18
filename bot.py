@@ -193,34 +193,57 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     user_id = query.from_user.id
     selected_course = query.data
 
-    await query.answer()
-
     service = CacheService()
     selected_courses = service.get_courses(user_id=user_id)
+
+    if selected_course[0] == 'Z':
+        await query.answer(text='تداخل داره!', show_alert=True)
+        return settings.STATES['choose_courses']
+
+    await query.answer()
+    if query.data == '-2':
+        service.delete_conflicts_sum(user_id=user_id)
+        service.delete_all_courses(user_id=user_id)
 
     if selected_course[0] == 'C':
         if str(selected_course[1:]) in selected_courses:
             service.delete_courses(user_id, str(selected_course[1:]))
+            service.aggregate_conflicts_minus(user_id=user_id, course_id=int(selected_course[1:]))
         else:
             service.cache_course(user_id=user_id, course=selected_course[1:])
+            service.aggregate_conflicts_plus(user_id=user_id, course_id=int(selected_course[1:]))
 
     if selected_course == '-1':
         return await choose_courses_done(update, context)
 
     selected_courses = service.get_courses(user_id=user_id)
     selected_courses_weight_sum = Course.objects.filter(id__in=selected_courses).aggregate(Sum('weight'))['weight__sum']
+    conflicts = service.get_conflicts_sum(user_id=user_id)
+    print(f'course: {selected_course}, confs: {conflicts}')
 
-    emoji = '\U0001F351'
+    selected_emoji = '\U0001F351'
+    cross_emoji = '\U0001F480'
+    get_name = lambda course, it: f'{str(course)}{("", f" {selected_emoji}")[str(course.id) in selected_courses]}' \
+                              f'{(f" {cross_emoji}", "")[not conflicts[it] if conflicts else 1]}'
+    has_conflict = lambda course, it: 1 if (conflicts[it] if conflicts else 0) else 0
+
+    st = Student.objects.get(user_id=user_id)
+    courses = Course.objects.filter(university=st.university,
+                                    majors__in=[st.major])
+
     keyboard = [
         [
-            InlineKeyboardButton(f'{str(course)}{("", f" {emoji}")[str(course.id) in selected_courses]}',
-                                 callback_data=fr'C{course.id}')
-        ] for course in Course.objects.all()
+            InlineKeyboardButton(get_name(course, it),
+                                 callback_data=fr'C{course.id}' if not has_conflict(course, it) else r'Z')
+        ] for it, course in enumerate(courses)
     ]
 
     keyboard += [
         [
-            InlineKeyboardButton('تموم شد', callback_data='-1')
+            InlineKeyboardButton('ریستارت', callback_data='-2'),
+        ],
+        [
+            InlineKeyboardButton('تموم شد', callback_data='-1'),
         ]
     ]
     markup = InlineKeyboardMarkup(keyboard)
@@ -428,8 +451,8 @@ async def deadline_course_select(update: Update, context: CallbackContext):
     if query.id.isdigit():
         course = Course.objects.get(id=int(query.id))
         service.cache_course(user_id=user_id,
-                                      course_id=course.id,
-                                      course_name=course.name)
+                             course_id=course.id,
+                             course_name=course.name)
     else:
         if query.data == 'E0':
             await deadline_course_name(update, context)
@@ -559,7 +582,7 @@ def main() -> None:
                 CallbackQueryHandler(add_course_to_profile, pattern='^1$'),
             ],
             settings.STATES['easy_deadline']: [
-                CallbackQueryHandler()
+                # CallbackQueryHandler()
             ]
         },
         fallbacks=[CommandHandler('start', start)]
