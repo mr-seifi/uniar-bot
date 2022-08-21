@@ -167,8 +167,10 @@ TELEGRAM_MESSAGES = {
     'easy_deadline_course': 'دیتیل مربوط به ددلاینتو وارد کن.\n'
                             'کورس: *{name}*',
     'easy_deadline_name': 'لطفا *نام* تمرینت رو وارد کن!',
-    'easy_deadline_deadline': 'لطفا *ددلاین* تمرینت رو وارد کن.'
-
+    'easy_deadline_year': 'ددلاینت برای چه *سالی* هست؟',
+    'easy_deadline_month': 'ددلاینت برای چه *ماهی* هست؟',
+    'easy_deadline_day': 'ددلاینت برای چه *روزی* هست؟',
+    'easy_deadline_done': 'ثبت ددلاینت با موفقیت انجام شد!'
 }
 
 STATES = {
@@ -183,5 +185,7 @@ STATES = {
     'add_course_to_profile': 8,
     'easy_deadline': 9,
     'easy_deadline_courses': 10,
-    'easy_deadline_name': 11,
+    'easy_deadline_year': 11,
+    'easy_deadline_month': 12,
+    'easy_deadline_day': 13,
 }

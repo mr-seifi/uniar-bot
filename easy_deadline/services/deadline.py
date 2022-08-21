@@ -8,6 +8,7 @@ class DeadlineCacheService(BaseCacheService):
         'name': f'{PREFIX}:''{user_id}_NAME',
         'deadline': f'{PREFIX}:''{user_id}_DEADLINE',
         'reminder': f'{PREFIX}:''{user_id}_REMINDER',
+        'sent_pm': f'{PREFIX}:''{exercise_id}_SENT_PM',
     }
     EX = 60 * 15
 
@@ -54,3 +55,14 @@ class DeadlineCacheService(BaseCacheService):
         client = self._get_redis_client()
 
         return int((client.get(name=self.KEYS['reminder'].format(user_id=user_id)) or b'0').decode())
+
+    def cache_sent_pm(self, exercise_id):
+        client = self._get_redis_client()
+
+        client.set(self.KEYS['sent_pm'].format(exercise_id=exercise_id),
+                   1)
+
+    def get_sent_pm(self, exercise_id):
+        client = self._get_redis_client()
+
+        return int((client.get(self.KEYS['sent_pm'].format(exercise_id=exercise_id)) or b'0').decode())

@@ -1,15 +1,20 @@
 import logging
+import jdatetime
+import datetime
 from django.db.models import Sum
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, CallbackContext, ConversationHandler, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, CallbackContext, ConversationHandler, CallbackQueryHandler, \
+    MessageHandler, filters
 from secret import BOT_TOKEN
+from _helpers import split, month_range
 from django.conf import settings
 from prof.models import Student, University, Major
 from prof.enums import YearChoices
 from prof.services import NameMappingService
 from easy_vahed.models import Chart, Course
 from easy_vahed.services import CacheService, ConflictService
+from easy_deadline.models import Exersice
 from easy_deadline.services import DeadlineCacheService
 
 # Enable logging
@@ -150,6 +155,8 @@ async def menu(update: Update, _: CallbackContext) -> int:
     keyboard = [
         [
             InlineKeyboardButton('پروفایل', callback_data=0),
+        ],
+        [
             InlineKeyboardButton('ایزی واحد', callback_data=1),
             InlineKeyboardButton('ایزی ددلاین', callback_data=2),
         ]
@@ -224,7 +231,7 @@ async def choose_courses(update: Update, context: CallbackContext) -> int:
     selected_emoji = '\U0001F351'
     cross_emoji = '\U0001F480'
     get_name = lambda course, it: f'{str(course)}{("", f" {selected_emoji}")[str(course.id) in selected_courses]}' \
-                              f'{(f" {cross_emoji}", "")[not conflicts[it] if conflicts else 1]}'
+                                  f'{(f" {cross_emoji}", "")[not conflicts[it] if conflicts else 1]}'
     has_conflict = lambda course, it: 1 if (conflicts[it] if conflicts else 0) else 0
 
     st = Student.objects.get(user_id=user_id)
@@ -264,11 +271,8 @@ async def choose_courses_done(update: Update, _: CallbackContext):
     cache_service = CacheService()
     service = ConflictService()
 
-    st = Student.objects.get(user_id=user_id)
     course_ids = cache_service.get_courses(user_id=user_id)
     courses = Course.objects.filter(id__in=course_ids)
-    all_courses = Course.objects.filter(university=st.university,
-                                        majors__in=[st.major])
 
     for it_1, course_1 in enumerate(courses):
         for it_2, course_2 in enumerate(courses):
@@ -277,7 +281,6 @@ async def choose_courses_done(update: Update, _: CallbackContext):
 
             has_conflict, reason = service.check_conflict(course_1, course_2)
             if has_conflict:
-
                 init_message = settings.TELEGRAM_MESSAGES['has_conflict'].format(c1=course_1.name,
                                                                                  c2=course_2.name,
                                                                                  reason=reason)
@@ -421,25 +424,32 @@ async def easy_deadline(update: Update, _: CallbackContext) -> int:
 
 async def deadline_course_select(update: Update, context: CallbackContext):
     query = update.callback_query
-    user_id = query.from_user.id
+    if query:
+        user_id = query.from_user.id
+    else:
+        user_id = update.message.from_user.id
 
     service = DeadlineCacheService()
-    if query.id.isdigit():
-        course = Course.objects.get(id=int(query.id))
-        service.cache_course(user_id=user_id,
-                             course_id=course.id,
-                             course_name=course.name)
-    else:
-        if query.data == 'E0':
-            await deadline_course_name(update, context)
-        elif query.data == 'E1':
-            service.cache_deadline(user_id=user_id, deadline=query.data)
-        elif query.data == 'E2':
-            if service.get_reminder(user_id=user_id):
-                service.cache_reminder(user_id=user_id, reminder=0)
-            service.cache_reminder(user_id=user_id, reminder=1)
+    print('query', query, type(query))
+
+    if query:
+        if query.data.isdigit():
+            course = Course.objects.get(id=int(query.data))
+            service.cache_course(user_id=user_id,
+                                 course_id=course.id,
+                                 course_name=course.name)
         else:
-            ...
+            if query.data == 'E0':
+                return await deadline_course_name(update, context)
+            elif query.data == 'E1':
+                return await deadline_course_deadline_year(update, context)
+            elif query.data == 'E2':
+                if service.get_reminder(user_id=user_id):
+                    service.cache_reminder(user_id=user_id, reminder=0)
+                service.cache_reminder(user_id=user_id, reminder=1)
+            else:
+                ...
+            await query.answer()
 
     course_id, course_name = service.get_course(user_id=user_id).split(':')
     if not course_id:
@@ -453,8 +463,29 @@ async def deadline_course_select(update: Update, context: CallbackContext):
     if cached_reminder == 1:
         cached_reminder = '\U0001F346'
     reminder = f'یادآور' + (f': {cached_reminder}', '')[not cached_reminder]
+    if query.data == 'E-1':
+        if cached_name and cached_deadline and cached_reminder:
+            print('++++im here')
 
-    await query.answer()
+            st = Student.objects.get(user_id=user_id)
+            year, month, day = list(map(int, cached_deadline.split('-')))
+            gr_date = jdatetime.JalaliToGregorian(year, month, day)
+
+            Exersice.objects.create(
+                name=cached_name,
+                course_id=course_id,
+                student=st,
+                deadline=datetime.datetime(gr_date.gyear, gr_date.gmonth, gr_date.gday, 0, 0, 0),
+                has_reminder=(True, False)[not cached_reminder]
+            )
+
+            await query.edit_message_text(
+                settings.TELEGRAM_MESSAGES['easy_deadline_done'],
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+            return ConversationHandler.END
+
     keyboard = [
         [
             InlineKeyboardButton(name, callback_data='E0'),
@@ -471,13 +502,20 @@ async def deadline_course_select(update: Update, context: CallbackContext):
     ]
     markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        settings.TELEGRAM_MESSAGES['easy_deadline_course'].format(name=course_name),
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=markup
-    )
+    if query:
+        await query.edit_message_text(
+            settings.TELEGRAM_MESSAGES['easy_deadline_course'].format(name=course_name),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=markup
+        )
+    else:
+        await update.message.reply_text(
+            settings.TELEGRAM_MESSAGES['easy_deadline_course'].format(name=course_name),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=markup
+        )
 
-    return settings.STATES['easy_deadline_courses']
+    return settings.STATES['easy_deadline']
 
 
 async def deadline_course_name(update: Update, _: CallbackContext):
@@ -485,13 +523,13 @@ async def deadline_course_name(update: Update, _: CallbackContext):
 
     await query.edit_message_text(
         settings.TELEGRAM_MESSAGES['easy_deadline_name'],
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.MARKDOWN,
     )
 
-    return settings.STATES['easy_deadline_name']
+    return settings.STATES['easy_deadline_courses']
 
 
-async def deadline_store_course_name(update: Update, _: CallbackContext):
+async def deadline_store_course_name(update: Update, context: CallbackContext):
     message = update.message
     user_id = message.from_user.id
 
@@ -499,29 +537,104 @@ async def deadline_store_course_name(update: Update, _: CallbackContext):
     service.cache_name(user_id=user_id,
                        name=message.text)
 
-    return settings.STATES['easy_deadline_name']
+    return await deadline_course_select(update, context)
 
 
-async def deadline_course_deadline(update: Update, _: CallbackContext):
+async def deadline_course_deadline_year(update: Update, _: CallbackContext):
     query = update.callback_query
 
+    keyboard = [
+        [
+            InlineKeyboardButton('1401', callback_data=1401),
+            InlineKeyboardButton('1402', callback_data=1402),
+        ]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
     await query.edit_message_text(
-        settings.TELEGRAM_MESSAGES['easy_deadline_deadline'],
-        parse_mode=ParseMode.MARKDOWN
+        settings.TELEGRAM_MESSAGES['easy_deadline_year'],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=markup
     )
 
-    return settings.STATES['easy_deadline_name']
+    return settings.STATES['easy_deadline_year']
 
 
-async def deadline_store_course_deadline(update: Update, _: CallbackContext):
-    message = update.message
-    user_id = message.from_user.id
+async def deadline_course_deadline_month(update: Update, _: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+    await query.answer()
 
     service = DeadlineCacheService()
-    service.cache_name(user_id=user_id,
-                       name=message.text)
+    service.cache_deadline(
+        user_id=user_id,
+        deadline=query.data
+    )
 
-    return settings.STATES['easy_deadline_name']
+    keyboard = split([
+        InlineKeyboardButton(month, callback_data=it + 1)
+        for it, month in enumerate(jdatetime.date.j_months_fa)
+        if it >= jdatetime.datetime.now().month - 1
+    ], 3)
+
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_deadline_month'],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=markup
+    )
+
+    return settings.STATES['easy_deadline_month']
+
+
+async def deadline_course_deadline_day(update: Update, _: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    await query.answer()
+    service = DeadlineCacheService()
+    year = service.get_deadline(
+        user_id=user_id
+    )
+    month = query.data
+
+    service.cache_deadline(
+        user_id=user_id,
+        deadline=f'{year}-{month}'
+    )
+
+    keyboard = split([
+        InlineKeyboardButton(f'{d}', callback_data=d)
+        for d in range(*month_range(int(year), int(month)))
+    ], 5)
+    markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        settings.TELEGRAM_MESSAGES['easy_deadline_day'],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=markup
+    )
+
+    return settings.STATES['easy_deadline_day']
+
+
+async def deadline_course_deadline_done(update: Update, _: CallbackContext):
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    await query.answer()
+    service = DeadlineCacheService()
+    year_month = service.get_deadline(
+        user_id=user_id
+    )
+    day = query.data
+    service.cache_deadline(
+        user_id=user_id,
+        deadline=f'{year_month}-{day}'
+    )
+
+    return await deadline_course_select(update, _)
 
 
 def main() -> None:
@@ -558,7 +671,19 @@ def main() -> None:
                 CallbackQueryHandler(add_course_to_profile, pattern='^1$'),
             ],
             settings.STATES['easy_deadline']: [
-                # CallbackQueryHandler()
+                CallbackQueryHandler(deadline_course_select, pattern=r'^.+$')
+            ],
+            settings.STATES['easy_deadline_courses']: [
+                MessageHandler(filters.TEXT & ~ filters.COMMAND, deadline_store_course_name)
+            ],
+            settings.STATES['easy_deadline_year']: [
+                CallbackQueryHandler(deadline_course_deadline_month, pattern='^140\d$')
+            ],
+            settings.STATES['easy_deadline_month']: [
+                CallbackQueryHandler(deadline_course_deadline_day, pattern='^\d+$')
+            ],
+            settings.STATES['easy_deadline_day']: [
+                CallbackQueryHandler(deadline_course_deadline_done, pattern='^\d+$')
             ]
         },
         fallbacks=[CommandHandler('start', start)]
